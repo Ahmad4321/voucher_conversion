@@ -1,7 +1,7 @@
 import express from 'express';
 import bodyParser from 'body-parser';
 import { fetch_asn } from './routes';
-// import { oracle_conn } from './config';
+import { connection } from './config';
 
 
 
@@ -20,8 +20,6 @@ app.use('/receiving',fetch_asn)
 app.listen(3000 , ()=>{
 
     // console.clear();
-
-    // console.log(oracle_conn);
 
     console.log("App is lisenting to 3000 port");
 
