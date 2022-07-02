@@ -1,5 +1,7 @@
 import oracledb from 'oracledb';
 
+oracledb.autoCommit = true;
+
 
 
 let connection : any;
