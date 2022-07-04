@@ -3,21 +3,20 @@ import oracledb from 'oracledb';
 oracledb.autoCommit = true;
 
 
+async function get_oracle_connection() {
 
-let connection : any;
+  const connection = await oracledb.getConnection({
+      user: "reportuser",
+      password: "report",
+      connectString: "(DESCRIPTION =(ADDRESS = (PROTOCOL = TCP)(HOST   = 161.97.114.150)(PORT = 1521))(CONNECT_DATA =(SID= RPROODS)))"
+  });
 
-oracledb.getConnection({
-    user: "reportuser",
-    password: "report",
-    connectString: "(DESCRIPTION =(ADDRESS = (PROTOCOL = TCP)(HOST   = 161.97.114.150)(PORT = 1521))(CONNECT_DATA =(SID= RPROODS)))"
-}).then((result)=>{
-  connection = result
-  // console.log(result)
-
-});
-
+  return connection;
+  
+}
 
 
-export { connection }
+
+export { get_oracle_connection }
 
 
