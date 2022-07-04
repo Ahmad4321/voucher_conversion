@@ -15,5 +15,9 @@ CREATE TABLE REPORTUSER.VOUCHER_CONVERSION
   DATE_PAYLOAD  NCLOB                           NOT NULL,
   VOU_SID       VARCHAR2(50 BYTE),
   VOU_NO        NUMBER,
-  STORE_NO      NUMBER
+  STORE_NO      NUMBER,
+  PENDING       NUMBER                          DEFAULT 0,
+  TOTAL_QTY     NUMBER                          DEFAULT 0
 )
+
+voucher_conversions

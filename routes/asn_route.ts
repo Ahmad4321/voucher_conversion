@@ -5,9 +5,9 @@ const router =  express.Router();
 
 
 router.get ('/getpendingvouchers',getPendingVouchers); //done
-router.post ('/loadpendingvoucherbyid',loadpendingvoucherbyid);
-router.get ('/loadnewpendingvouchers',loadnewpendingvouchers);
-router.post ('/saveupdatedvoucherscan',saveupdatedvoucherscan);
+router.post ('/loadpendingvoucherbyid',loadpendingvoucherbyid); // Done
+router.get ('/loadnewpendingvouchers',loadnewpendingvouchers); // Done
+router.post ('/saveupdatedvoucherscan',saveupdatedvoucherscan); // working
 router.post ('/compareandsavevouchers',compareandsavevouchers);
 
 
