@@ -1,1 +1,2 @@
-export { getPendingVouchers,loadpendingvoucherbyid , saveupdatedvoucherscan, compareandsavevouchers ,loadnewpendingvouchers } from "./ASNControllers";
+export { loadnewpendingvouchers } from "./ASNControllers";
+export {getPendingVouchers,loadpendingvoucherbyid , saveupdatedvoucherscan, compareandsavevouchers } from "./pendingandsaveasn";

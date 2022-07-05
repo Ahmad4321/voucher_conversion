@@ -2,6 +2,10 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import { fetch_asn } from './routes';
 // import { connection } from './config';
+import dotenv from "dotenv";
+dotenv.config();
+
+console.log(process.env.RP_STORE_IP);
 
 
 
