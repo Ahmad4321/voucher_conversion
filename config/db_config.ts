@@ -7,9 +7,9 @@ async function get_oracle_connection() {
   let connection : any;
   try {
     connection  = await oracledb.getConnection({
-      user: "reportuser",
-      password: "report",
-      connectString: "(DESCRIPTION =(ADDRESS = (PROTOCOL = TCP)(HOST   = 161.97.114.150)(PORT = 1521))(CONNECT_DATA =(SID= RPROODS)))"
+      user: process.env.RP_DB_USER_NAME,
+      password: process.env.RP_DB_PASSWORD,
+      connectString: "(DESCRIPTION =(ADDRESS = (PROTOCOL = TCP)(HOST   = "+process.env.RP_STORE_IP+")(PORT = "+process.env.RP_PORT+"))(CONNECT_DATA =(SID= "+process.env.RP_DATABASE+")))"
     });
     
   } catch (error) {

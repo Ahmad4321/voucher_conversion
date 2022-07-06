@@ -7,13 +7,13 @@ export const loadnewpendingvouchers = async (req:Request , res : Response , next
     const mysql_connect  = await mysql_connection();
     const connection = await get_oracle_connection();
     let head_details : any=  [];
-    const sql = `SELECT to_char(V.VOU_SID) vou_sid,V.STORE_NO,asn_no,vou_no FROM VOUCHER V, VOU_ITEM VI 
-    WHERE  V.VOU_SID = VI.VOU_SID
-    AND V.VOU_CLASS = 2
-    AND V.held <> 1
-    AND V.SLIP_FLAG = 1
-    and v.vou_sid not in (select vou_sid from voucher_conversion)
-    group by V.VOU_SID,V.STORE_NO,asn_no,vou_no`;
+    const sql = `select to_char(t.sid) vou_sid,(select ss.STORE_NO from rps.store ss where t.STORE_SID = ss.SID and ss.SBS_SID = t.sbs_sid ) store_no, t.CREATED_DATETIME ,t.ASN_NO,
+    t.VOU_NO,to_char(t.ASN_SID) ASN_SID , to_char(t.CLERK_SID) clerk_sid , t.VOU_TYPE,(select count(vi.item_sid) from rps.vou_item vi where t.sid = vi.vou_sid) total_item
+    from RPS.VOUCHER t where
+    t.VOU_CLASS = 2
+    and t.HELD <> 1
+    and t.SLIP_FLAG = 1
+    and t.SID not in (select vou_sid from voucher_conversion)`;
 
     let result : any;
     result = await connection.execute(sql,{} ,{outFormat: oracledb.OUT_FORMAT_OBJECT
@@ -23,7 +23,7 @@ export const loadnewpendingvouchers = async (req:Request , res : Response , next
 
     for await (const header_asn of result.rows) {
 
-        let sql_item = "select to_char(vi.item_sid) item_sid , vi.orig_qty ,vi.qty , vi.price, vi.tax_perc, (select local_upc from invn_sbs i where i.item_sid = vi.item_sid) UPC from vou_item vi where vi.vou_sid = "+header_asn['VOU_SID'];
+        let sql_item = "select to_char(vi.item_sid) item_sid , vi.orig_qty ,vi.qty , vi.price, vi.tax_perc, (select local_upc from invn_sbs i where i.item_sid = vi.item_sid) UPC , vi.COST from vou_item vi where vi.vou_sid = "+header_asn['VOU_SID'];
 
         let result_items : any;
         result_items = await connection.execute(sql_item,{} ,{outFormat: oracledb.OUT_FORMAT_OBJECT
@@ -40,6 +40,7 @@ export const loadnewpendingvouchers = async (req:Request , res : Response , next
                 "item_sid"  : items['ITEM_SID'],
                 "item_pos" : items['ITEM_POS'],
                 "qty" : items['QTY'],
+                "cost" : items['COST'],
                 "price" : items['PRICE'],
                 "tax_perc" : items['TAX_PERC'],
                 "upc" : items['UPC'],
@@ -52,8 +53,14 @@ export const loadnewpendingvouchers = async (req:Request , res : Response , next
         }
         const headerqq = {
             "vou_sid" : header_asn['VOU_SID'],
-            "vou_no"  : header_asn['VOU_NO'],
+            "vou_no"  : header_asn['ASN_NO'],
             "store_no" : header_asn['STORE_NO'],
+            "auth_session" : "",
+            "created_datetime" : header_asn['CREATED_DATETIME'],
+            "asn_no"  : header_asn['ASN_NO'],
+            "clerk" : header_asn['CLERK_SID'],
+            "approvbysid" : header_asn['CLERK_SID'],
+            "line_item" : header_asn['TOTAL_ITEM'],
             "total_qty" : sum_qty,
             "qty_diff" : 0,
             "items" : item_details
@@ -63,9 +70,9 @@ export const loadnewpendingvouchers = async (req:Request , res : Response , next
 
         const json = JSON.stringify(headerqq);
 
-        const insert_query = "INSERT INTO voucher_conversion (vou_sid,vou_no,store_no,total_qty) VALUES ('"+header_asn['VOU_SID']+"',"+header_asn['VOU_NO']+","+header_asn['STORE_NO'] +","+sum_qty+")";
+        const insert_query = "INSERT INTO voucher_conversion (vou_sid,vou_no,store_no,total_qty) VALUES ('"+header_asn['VOU_SID']+"',"+header_asn['ASN_NO']+","+header_asn['STORE_NO'] +","+sum_qty+")";
 
-        const insert_mysql_query = "INSERT INTO voucher_conversions (date_payload,vou_sid,vou_no,store_no,total_qty) VALUES ('"+json+"','"+header_asn['VOU_SID']+"',"+header_asn['VOU_NO']+","+header_asn['STORE_NO'] +","+sum_qty+")";
+        const insert_mysql_query = "INSERT INTO voucher_conversions (date_payload,vou_sid,vou_no,store_no,total_qty) VALUES ('"+json+"','"+header_asn['VOU_SID']+"',"+header_asn['ASN_NO']+","+header_asn['STORE_NO'] +","+sum_qty+")";
 
         try {
             const insert_items = await connection.execute(insert_query, {} ,{outFormat: oracledb.OUT_FORMAT_OBJECT
@@ -73,7 +80,7 @@ export const loadnewpendingvouchers = async (req:Request , res : Response , next
 
             // mysql insert
             try {
-                const row_insert = await mysql_connect.query(insert_mysql_query);
+                const row_insert = await insert_voucher_data(mysql_connect,insert_mysql_query).then((response : any)=>{return response; });
                 
             } catch (error) {
                 
@@ -91,4 +98,23 @@ export const loadnewpendingvouchers = async (req:Request , res : Response , next
     } else {
         res.json({"message" : count+" asn has been inserted"});
     }
+}
+
+
+async function insert_voucher_data(connect : any,body :any) {
+    return new Promise((resolve, reject)=>{
+        connect.query(body,(err : any, result : any, fields : any) => { 
+            if (err) {
+                reject(err);
+            } else {
+                if (result.affectedRows == 1) {
+                    resolve({"status" : 1 , "message" : "Voucher has been inserted!"});
+    
+                } else {
+                    resolve({"status" : 0 , "message" : "Voucher has not been inserted","extra" : result});
+                }
+            }
+        })
+
+    });
 }

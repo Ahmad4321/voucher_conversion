@@ -11,7 +11,7 @@ export const getPendingVouchers = async (req:Request , res : Response , next : N
  
     await mysql_connect.query(sql,async (err : any, result :any, fields : any) => { 
         if (err) {
-            throw err;
+            res.json({"status" : 0 , "message" : "DB connections error"+err});
         } else {
 
             for await (const header_asn of result) {
@@ -35,7 +35,6 @@ export const compareandsavevouchers = async (req:Request , res : Response , next
 
     const mysql_connect  = await mysql_connection();
     if (mysql_connect != '') {
-        const asn_no = req.body.vou_no
 
         const result_db : any = await fetch_data(mysql_connect,req.body).then((response)=>{return response; });
 
@@ -44,111 +43,152 @@ export const compareandsavevouchers = async (req:Request , res : Response , next
             const items = result_db.items;
 
             // start conversion
-            const convert_voucher = await convert_voucher_conversion(result_db).then((response :any)=>{return response; });
-            const voucher_data = JSON.parse(convert_voucher);
-            if ((voucher_data.data[0].voucherstatuslist).length > 0) {
-                // fetch voucher details
-                const fetch_voucher = await fetch_voucher_details(result_db).then((response :any)=>{return response; });
-                if (fetch_voucher.data[0]) {
+            const fetch_voucher = await fetch_voucher_details(result_db).then((response :any)=>{return response; });
 
-                    // update voucher data
-                    if (fetch_voucher.data[0].status ==4) {
+            // Check if the data is empty show error
+            if ((fetch_voucher.data).length > 0) {
+
+                if (fetch_voucher.data[0]) {
+                     if ((fetch_voucher.data[0].status == 4) && (fetch_voucher.data[0].vouno > 0 )) {
                         const result_db_up : any = await update_voucher_complete(mysql_connect,req.body).then((response : any)=>{return response; });
                         res.json({"status" : 1 ,"message": result_db_up,"extra" : fetch_voucher.data[0].sid});
                     } else {
-                        const update_voucher = await update_voucher_details(fetch_voucher.data[0]).then((response :any)=>{return response; });
-                        if (update_voucher.data[0]) {
-                            let bool = false;
+                        const convert_voucher = await convert_voucher_conversion(result_db).then((response :any)=>{return response; });
+                        const voucher_data = JSON.parse(convert_voucher);
+                        if ((voucher_data.data[0].voucherstatuslist).length > 0) {
+                        // fetch voucher details
+                            const fetch_voucher = await fetch_voucher_details(result_db).then((response :any)=>{return response; });
+                            if (fetch_voucher.data[0]) {
+                                const update_voucher = await update_voucher_details(fetch_voucher.data[0],result_db).then((response :any)=>{return response; });
+                                if ((update_voucher.data).length > 0) {
+                                    if (update_voucher.data[0]) {
+                                        let bool = false;
 
-                            for await (const it of items ) {
-                                bool = false;
-                                if (it.new == 1 ) {
-                                    // check if items is laredy posted
-                                    let tool =  false; 
-                                    // for await (const qty_verified of update_voucher.data[0].recvitem) {
-                                    for await (const qty_verified of fetch_voucher.data[0].recvitem) {
-                                        console.log("item upc");
-                                        console.log(it.upc);
-                                        console.log("qty upc");
-                                        console.log( qty_verified.upc);
-                                        if (it.upc == qty_verified.upc) {
-                                            tool =  true;
-                                            break;
-                                        }  else {
-                                            tool = false;
-                                        }
-                                    }
+                                        let item_error : any;
 
-                                    if (tool == false) {
-                                        const item_data = {
-                                            "auth-session" : result_db.auth_session,
-                                            "vou_sid" : it.vou_sid,
-                                            "prism_item_sid" : it.prism_item_sid,
-                                            "item_qty" : it.scanned_qty
-                                        }
-                                        if (item_data) {
-                                            const item_dt = await update_new_voucher_item_details(item_data).then((response :any)=>{return response; });
-                                            bool = true;
-                                        }
-
-                                    }    
-
-                                } else {
-                                    if ( it.qty == it.scanned_qty) {
-                                        bool = true;
-                                    } else {
-                                        // console.log(update_voucher.data[0].recvitem);
-                                        let item_data : any;
-                                        for await (const qty_verified of update_voucher.data[0].recvitem) {
-                                            if (it.upc == qty_verified.upc) {
-                                                item_data = {
-                                                    "auth-session" : result_db.auth_session,
-                                                    "vou_sid" : update_voucher.data[0].sid,
-                                                    "vou_item_sid" : qty_verified.sid,
-                                                    "item_qty" : it.scanned_qty,
-                                                    "item_rowversion" : qty_verified.rowversion,
-                                                }
-                                            } 
-                                        }
-                                        if (item_data) {
-                                            const item_dt = await update_existing_voucher_item_details(item_data).then((response :any)=>{return response; });
-                                            bool = true;
-                                        } else {
+                                        for await (const it of items ) {
+                                            let itemss : any;
                                             bool = false;
-                                            break;
+                                            if (it.new == 1 ) {
+                                                // check if items is laredy posted
+                                                let tool =  false; 
+                                                // for await (const qty_verified of update_voucher.data[0].recvitem) {
+                                                for await (const qty_verified of fetch_voucher.data[0].recvitem) {
+                                                    if (it.upc == qty_verified.upc) {
+                                                        tool =  true;
+                                                        break;
+                                                    }  else {
+                                                        tool = false;
+                                                    }
+                                                }
+
+                                                if (tool == false) {
+                                                    const item_data = {
+                                                        "auth_session" : result_db.auth_session,
+                                                        "vou_sid" : it.vou_sid,
+                                                        "prism_item_sid" : it.prism_item_sid,
+                                                        "item_qty" : it.scanned_qty
+                                                    }
+                                                    if (item_data) {
+                                                        const item_dt = await update_new_voucher_item_details(item_data).then((response :any)=>{return response; });
+                                                        if ((item_dt.data).length > 0){
+                                                            bool = true;
+                                                        } else {
+                                                            bool = false;
+                                                            items.push({"item_post_error" : item_dt.errors[0].errormsg + "update_new_voucher_item_details function","payload": item_data});
+
+                                                        }
+                                                        
+                                                    }
+
+                                                }    
+
+                                            } else {
+                                                if ( it.qty == it.scanned_qty) {
+                                                    bool = true;
+                                                } else {
+                                                    let item_data : any;
+                                                    for await (const qty_verified of update_voucher.data[0].recvitem) {
+                                                        if (it.upc == qty_verified.upc) {
+                                                            item_data = {
+                                                                "auth_session" : result_db.auth_session,
+                                                                "vou_sid" : update_voucher.data[0].sid,
+                                                                "vou_item_sid" : qty_verified.sid,
+                                                                "item_qty" : it.scanned_qty,
+                                                                "item_rowversion" : qty_verified.rowversion,
+                                                            }
+                                                        } 
+                                                    }
+                                                    if (item_data) {
+                                                        const item_dt = await update_existing_voucher_item_details(item_data).then((response :any)=>{return response; });
+                                                        bool = true;
+                                                        if ((item_dt.data).length > 0){
+                                                            bool = true;
+                                                        } else {
+                                                            bool = false;
+                                                            items.push({"item_post_error" : item_dt.errors[0].errormsg+" update_existing_voucher_item_details function" ,"payload": item_data});
+
+                                                        }
+                                                    } else {
+                                                        bool = false;
+                                                        break;
+                                                    }
+                                                }
+                                            }
                                         }
+
+                                        if ( bool == true ) {
+                                            const fetch_voucher_last = await fetch_voucher_details(result_db).then((response :any)=>{return response; });
+                                            if ((fetch_voucher.data).length > 0) {
+                                                if (fetch_voucher_last.data[0]) {
+                                                    const voucher_data = {
+                                                        "auth_session" : result_db.auth_session,
+                                                        "vou_sid" : fetch_voucher_last.data[0].sid,
+                                                        "rowversion" : fetch_voucher_last.data[0].rowversion,
+                                                        "approvbysid" : "589146682000153260",
+                                                        "approvdate" : "2022-07-04T12:03:44.673Z",
+                                                    }
+                                                    const complete_voucher = await post_complete_voucher_details(voucher_data).then((response :any)=>{return response; });
+                                                    if ((complete_voucher.data).length) {
+                                                        if (complete_voucher.data[0]) {
+                                                            const result_db_up : any = await update_voucher_complete(mysql_connect,req.body).then((response : any)=>{return response; });
+                                                            res.json({"status" : 1 ,"message": result_db_up,"extra" : fetch_voucher.data[0].sid});
+                                                        }
+                                                    } else {
+                                                        const errormsg = fetch_voucher.errors[0].errormsg;
+                                                        res.json({"status" : 0 ,"message":"Voucher is not converted , error on post_complete_voucher_details ,"+errormsg,"result" : errormsg });
+
+                                                    }
+
+                                                }
+                                            } else {
+                                                const errormsg = fetch_voucher.errors[0].errormsg;
+                                                res.json({"status" : 0 ,"message":"Voucher is not converted ,  error on post_voucher_details after item posting , "+errormsg,"result" : errormsg });
+                                            }
+
+
+                                        } else {
+                                            res.json({"status" : 0 ,"message":"Item qty or item not good","result" : items });
+
+                                        }
+
                                     }
+                                } else {
+                                    const errormsg = update_voucher.errors[0].errormsg;
+                                    res.json({"status" : 0 ,"message":"Voucher is not converted , update_voucher_details functions ,"+errormsg,"result" : errormsg });
                                 }
                             }
-
-                            if ( bool == true ) {
-                                const fetch_voucher_last = await fetch_voucher_details(result_db).then((response :any)=>{return response; });
-                                if (fetch_voucher_last.data[0]) {
-                                    const voucher_data = {
-                                        "auth-session" : result_db.auth_session,
-                                        "vou_sid" : fetch_voucher_last.data[0].sid,
-                                        "rowversion" : fetch_voucher_last.data[0].rowversion,
-                                        "approvbysid" : "589146682000153260",
-                                        "approvdate" : "2022-07-04T12:03:44.673Z",
-                                    }
-                                    const complete_voucher = await post_complete_voucher_details(voucher_data).then((response :any)=>{return response; });
-                                    console.log(complete_voucher);
-                                    if (complete_voucher.data[0]) {
-                                        const result_db_up : any = await update_voucher_complete(mysql_connect,req.body).then((response : any)=>{return response; });
-                                        res.json({"status" : 1 ,"message": result_db_up,"extra" : fetch_voucher.data[0].sid});
-                                    }
-                                }
-
-
-                            } else {
-                                res.json({"status" : 0 ,"message":"Item qty or item not good"});
-
-                            }
+                        } else {
+                            const errormsg = voucher_data.errors[0].errormsg;
+                            res.json({"status" : 0 ,"message":"Voucher is not converted , convert_voucher_conversion function,"+errormsg,"result" : errormsg });
 
                         }
                     }
-
                 }
+            } else {
+                const errormsg = fetch_voucher.errors[0].errormsg;
+                res.json({"status" : 0 ,"message":"Voucher is not converted , fetch_voucher function first one,"+errormsg,"result" : errormsg });
+
             }
 
         } else {
@@ -172,7 +212,7 @@ export const loadpendingvoucherbyid = async (req:Request , res : Response , next
  
     await mysql_connect.query(sql,async (err : any, result :any, fields : any) => { 
         if (err) {
-            throw err;
+            res.json({"status" : 0 , "message" : "DB connections error"+err});
         } else {
 
             for await (const header_asn of result) {
@@ -193,11 +233,10 @@ export const loadpendingvoucherbyid = async (req:Request , res : Response , next
 export const saveupdatedvoucherscan = async (req:Request , res : Response , next : NextFunction) => {
     const mysql_connect  = await mysql_connection();
     const sql = `Update voucher_conversions set  DATE_PAYLOAD = '`+JSON.stringify(req.body)+`' where vou_no  = `+req.body.vou_no;
-    console.log(sql);
  
     await mysql_connect.query(sql,async (err : any, result :any, fields : any) => { 
         if (err) {
-            throw err;
+            res.json({"status" : 0 , "message" : "DB connections error"+err});
         } else {
             if (result.affectedRows == 1) {
                 res.json({"status" : 1 , "message" : "Voucher has been updated!"});
@@ -215,7 +254,8 @@ async function fetch_data(connect : any,body :any) {
         const sql = `select DATE_PAYLOAD from voucher_conversions where pending = 0 and TOTAL_QTY > 0 and vou_no  = `+body.vou_no;
         connect.query(sql,(err : any, result : any, fields : any) => { 
             if (err) {
-                reject(err);
+                // reject(err);
+                resolve(err);
             } else {
                 const data = JSON.parse(result[0].DATE_PAYLOAD.toString('utf-8'));
                 resolve(data);
@@ -252,17 +292,17 @@ async function convert_voucher_conversion(body:any) {
         var options = {
             'method': 'POST',
             'url': 'http://'+process.env.RP_STORE_IP+'/api/backoffice/receiving?action=convertasntovoucher',
-            'headers': {'Auth-session': '9FBD40C35D8049E3B5CA13A630CA1590','Accept': 'application/json,version=2',
+            'headers': {'Auth-session': body.auth_session,'Accept': 'application/json,version=2',
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                "data": [{"clerksid" : 589146682000153260, "asnsidlist": body.vou_sid,"originapplication": "RProPrismWeb"}]}
+                "data": [{"clerksid" : body.clerk, "asnsidlist": body.vou_sid,"doupdatevoucher":false,"originapplication": "RProPrismWeb"}]}
             )
         };
 
         request(options, function (error, response) {
             if (error) {
-                throw new Error(error);
+                resolve({"error" : "Prism connectivity problem port : 80", "data":[]});
             } else {
                 if (response.statusCode == 200) {
                     resolve(response.body);
@@ -279,22 +319,22 @@ async function convert_voucher_conversion(body:any) {
 
 async function fetch_voucher_details(body:any) {
     return new Promise((resolve, reject)=>{
-        console.log(body.auth_session);
+        
         var options = {
             'method': 'GET',
-            'url': 'http://'+process.env.RP_STORE_IP+'/api/backoffice/receiving/'+body.vou_sid+'?cols=sid,rowversion,clerksid,status,recvitem.sid,recvitem.rowversion,recvitem.itemsid,recvitem.qty,recvitem.upc',
-            'headers': {'Auth-session': '9FBD40C35D8049E3B5CA13A630CA1590' ,'Accept': 'application/json,version=2','Content-Type': 'application/json'
+            'url': 'http://'+process.env.RP_STORE_IP+'/api/backoffice/receiving/'+body.vou_sid+'?cols=sid,vouno,vouclass,rowversion,clerksid,status,recvitem.sid,recvitem.rowversion,recvitem.itemsid,recvitem.qty,recvitem.upc',
+            'headers': {'Auth-session': body.auth_session ,'Accept': 'application/json,version=2','Content-Type': 'application/json'
             }
         };
 
         request(options, function (error, response) {
             if (error) {
-                throw new Error(error);
+                resolve({"error" : "Prism connectivity problem port : 80", "data":[]});
             } else {
                 if (response.statusCode == 200) {
                     resolve(JSON.parse(response.body));
                 } else {
-                    resolve({"message" : "Error" ,"status":0,"response" :response.body});
+                    resolve(JSON.parse(response.body));
                 }
             }
         })
@@ -304,13 +344,14 @@ async function fetch_voucher_details(body:any) {
 }
 
 
-async function update_voucher_details(body:any) {
+async function update_voucher_details(body:any,db_body:any) {
     return new Promise((resolve, reject)=>{
-        console.log(body.auth_session);
+        
+        
         var options = {
             'method': 'PUT',
             'url': 'http://'+process.env.RP_STORE_IP+'/api/backoffice/receiving/'+body.sid+'?cols=sid,rowversion,clerksid,status,recvitem.sid,recvitem.rowversion,recvitem.itemsid,recvitem.qty,recvitem.upc',
-            'headers': {'Auth-session': '9FBD40C35D8049E3B5CA13A630CA1590' ,'Accept': 'application/json,version=2','Content-Type': 'application/json'
+            'headers': {'Auth-session': db_body.auth_session ,'Accept': 'application/json,version=2','Content-Type': 'application/json'
             },
             body: JSON.stringify({"data":[{"rowversion":body.rowversion,"publishstatus":1}]}
             )
@@ -318,12 +359,12 @@ async function update_voucher_details(body:any) {
 
         request(options, function (error, response) {
             if (error) {
-                throw new Error(error);
+                resolve({"error" : "Prism connectivity problem port : 80", "data":[]});
             } else {
                 if (response.statusCode == 200) {
                     resolve(JSON.parse(response.body));
                 } else {
-                    resolve({"message" : "Error" ,"status":0,"response" :response.body});
+                    resolve(JSON.parse(response.body));
                 }
             }
         })
@@ -335,24 +376,23 @@ async function update_voucher_details(body:any) {
 
 async function update_existing_voucher_item_details(body:any) {
     return new Promise((resolve, reject)=>{
-        console.log(body.auth_session);
+        
         var options = {
             'method': 'PUT',
             'url': 'http://'+process.env.RP_STORE_IP+'/api/backoffice/receiving/'+body.vou_sid+'/recvitem/'+body.vou_item_sid+'?cols=sid,rowversion,itemsid,qtyupc&filter=rowversion,eq,'+body.item_rowversion,
-            'headers': {'Auth-session': '9FBD40C35D8049E3B5CA13A630CA1590' ,'Accept': 'application/json,version=2','Content-Type': 'application/json'
+            'headers': {'Auth-session': body.auth_session ,'Accept': 'application/json,version=2','Content-Type': 'application/json'
             },
             body: JSON.stringify({"data":[{"rowversion":body.item_rowversion,"qty":body.item_qty}]})
         };
 
         request(options, function (error, response) {
             if (error) {
-                throw new Error(error);
+                resolve({"error" : "Prism connectivity problem port : 80", "data":[]});
             } else {
-                console.log(response.body)
                 if (response.statusCode == 200) {
                     resolve(JSON.parse(response.body));
                 } else {
-                    resolve({"message" : "Error" ,"status":0,"response" :response.body});
+                    resolve(JSON.parse(response.body));
                 }
             }
         })
@@ -363,24 +403,23 @@ async function update_existing_voucher_item_details(body:any) {
 
 async function update_new_voucher_item_details(body:any) {
     return new Promise((resolve, reject)=>{
-        console.log(body.auth_session);
+        
         var options = {
             'method': 'POST',
             'url': 'http://'+process.env.RP_STORE_IP+'/api/backoffice/receiving/'+body.vou_sid+'/recvitem?cols=sid,rowversion,itemsid,qtyupc',
-            'headers': {'Auth-session': '9FBD40C35D8049E3B5CA13A630CA1590' ,'Accept': 'application/json,version=2','Content-Type': 'application/json'
+            'headers': {'Auth-session': body.auth_session ,'Accept': 'application/json,version=2','Content-Type': 'application/json'
             },
             body: JSON.stringify({"data":[{"originapplication":"RProPrismWeb","itemsid": body.prism_item_sid,"qty": body.item_qty,"vousid":body.vou_sid}]})
         };
-        // console.log(options);
 
         request(options, function (error, response) {
             if (error) {
-                throw new Error(error);
+                resolve({"error" : "Prism connectivity problem port : 80", "data":[]});
             } else {
                 if (response.statusCode == 200) {
                     resolve(JSON.parse(response.body));
                 } else {
-                    resolve({"message" : "Error" ,"status":0,"response" :response.body});
+                    resolve(JSON.parse(response.body));
                 }
             }
         })
@@ -395,20 +434,19 @@ async function post_complete_voucher_details(body:any) {
         var options = {
             'method': 'PUT',
             'url': 'http://'+process.env.RP_STORE_IP+'/api/backoffice/receiving/'+body.vou_sid+'?cols=sid,rowversion&filter=rowversion,eq,'+body.rowversion,
-            'headers': {'Auth-session': '9FBD40C35D8049E3B5CA13A630CA1590' ,'Accept': 'application/json,version=2','Content-Type': 'application/json'
+            'headers': {'Auth-session': body.auth_session ,'Accept': 'application/json,version=2','Content-Type': 'application/json'
             },
             body: JSON.stringify({"data":[{"rowversion":body.rowversion,"status":4,"approvbysid":body.approvbysid,"approvdate":body.approvdate,"approvstatus":2,"publishstatus":2}]})
         };
-        console.log(options);
 
         request(options, function (error, response) {
             if (error) {
-                throw new Error(error);
+                resolve({"error" : "Prism connectivity problem port : 80", "data":[]});
             } else {
                 if (response.statusCode == 200) {
                     resolve(JSON.parse(response.body));
                 } else {
-                    resolve({"message" : "Error" ,"status":0,"response" :response.body});
+                    resolve(JSON.parse(response.body));
                 }
             }
         })

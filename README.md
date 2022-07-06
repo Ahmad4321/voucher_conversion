@@ -7,6 +7,9 @@
 
 
 
+
+
+
 ---- Created table using query
 
 Oracle 
@@ -38,6 +41,6 @@ CREATE TABLE `voucher_conversions` (
 )
 
 ALTER TABLE `voucher_conversions`.`voucher_conversions`
-  ADD UNIQUE INDEX `Uunique_value` (`VOU_SID`, `VOU_NO`);
+ADD UNIQUE INDEX `Uunique_value` (`VOU_SID`, `VOU_NO`);
 
 voucher_conversions
