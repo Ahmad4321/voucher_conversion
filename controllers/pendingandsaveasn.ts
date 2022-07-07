@@ -257,8 +257,13 @@ async function fetch_data(connect : any,body :any) {
                 // reject(err);
                 resolve(err);
             } else {
-                const data = JSON.parse(result[0].DATE_PAYLOAD.toString('utf-8'));
-                resolve(data);
+                if (result.length > 0) {
+                    const data = JSON.parse(result[0].DATE_PAYLOAD.toString('utf-8'));
+                    resolve(data);
+                } else {
+                    resolve(null);
+
+                }
             }
         })
 
@@ -346,8 +351,6 @@ async function fetch_voucher_details(body:any) {
 
 async function update_voucher_details(body:any,db_body:any) {
     return new Promise((resolve, reject)=>{
-        
-        
         var options = {
             'method': 'PUT',
             'url': 'http://'+process.env.RP_STORE_IP+'/api/backoffice/receiving/'+body.sid+'?cols=sid,rowversion,clerksid,status,recvitem.sid,recvitem.rowversion,recvitem.itemsid,recvitem.qty,recvitem.upc',

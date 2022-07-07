@@ -7,7 +7,7 @@ export const loadnewpendingvouchers = async (req:Request , res : Response , next
     const mysql_connect  = await mysql_connection();
     const connection = await get_oracle_connection();
     let head_details : any=  [];
-    const sql = `select to_char(t.sid) vou_sid,(select ss.STORE_NO from rps.store ss where t.STORE_SID = ss.SID and ss.SBS_SID = t.sbs_sid ) store_no, t.CREATED_DATETIME ,t.ASN_NO,
+    const sql = `select to_char(t.sid) vou_sid,(select ss.STORE_NO from rps.store ss where t.STORE_SID = ss.SID and ss.SBS_SID = t.sbs_sid  and ss.store_no = `+process.env.RP_STORE_NO+`) store_no, t.CREATED_DATETIME ,t.ASN_NO,
     t.VOU_NO,to_char(t.ASN_SID) ASN_SID , to_char(t.CLERK_SID) clerk_sid , t.VOU_TYPE,(select count(vi.item_sid) from rps.vou_item vi where t.sid = vi.vou_sid) total_item
     from RPS.VOUCHER t where
     t.VOU_CLASS = 2
@@ -23,7 +23,7 @@ export const loadnewpendingvouchers = async (req:Request , res : Response , next
 
     for await (const header_asn of result.rows) {
 
-        let sql_item = "select to_char(vi.item_sid) item_sid , vi.orig_qty ,vi.qty , vi.price, vi.tax_perc, (select local_upc from invn_sbs i where i.item_sid = vi.item_sid) UPC , vi.COST from vou_item vi where vi.vou_sid = "+header_asn['VOU_SID'];
+        let sql_item = "select to_char(vi.item_sid) item_sid , vi.orig_qty ,vi.qty , vi.price, vi.tax_perc, (select upc from rps.invn_sbs_item i where i.sid = vi.item_sid) UPC , vi.COST from rps.vou_item vi where vi.vou_sid = "+header_asn['VOU_SID'];
 
         let result_items : any;
         result_items = await connection.execute(sql_item,{} ,{outFormat: oracledb.OUT_FORMAT_OBJECT

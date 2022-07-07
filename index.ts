@@ -21,10 +21,10 @@ app.use('/receiving',fetch_asn)
 
 
 
-app.listen(3000 , ()=>{
+app.listen(process.env.APPLIATION_PORT , ()=>{
 
     // console.clear();
 
-    console.log("App is lisenting to 3000 port");
+    console.log("App is lisenting to "+process.env.APPLIATION_PORT+" port");
 
 })
