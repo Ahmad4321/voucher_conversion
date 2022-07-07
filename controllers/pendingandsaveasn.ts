@@ -228,7 +228,7 @@ export const loadpendingvoucherbyid = async (req:Request , res : Response , next
         }
     });
 }
-
+ 
 
 export const saveupdatedvoucherscan = async (req:Request , res : Response , next : NextFunction) => {
     const mysql_connect  = await mysql_connection();
@@ -288,9 +288,6 @@ async function update_voucher_complete(connect : any,body :any) {
 
     });
 }
-
-
-
 
 async function convert_voucher_conversion(body:any) {
     return new Promise((resolve, reject)=>{
