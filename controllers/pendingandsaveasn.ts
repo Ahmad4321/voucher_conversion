@@ -58,6 +58,7 @@ export const compareandsavevouchers = async (req:Request , res : Response , next
                         if ((voucher_data.data[0].voucherstatuslist).length > 0) {
                         // fetch voucher details
                             const fetch_voucher = await fetch_voucher_details(result_db).then((response :any)=>{return response; });
+                            // console.log(fetch_voucher);
                             if (fetch_voucher.data[0]) {
                                 const update_voucher = await update_voucher_details(fetch_voucher.data[0],result_db).then((response :any)=>{return response; });
                                 if ((update_voucher.data).length > 0) {
@@ -86,7 +87,7 @@ export const compareandsavevouchers = async (req:Request , res : Response , next
                                                     const item_data = {
                                                         "auth_session" : result_db.auth_session,
                                                         "vou_sid" : it.vou_sid,
-                                                        "prism_item_sid" : it.prism_item_sid,
+                                                        "prism_item_sid" : it.item_sid,
                                                         "item_qty" : it.scanned_qty
                                                     }
                                                     if (item_data) {
@@ -145,8 +146,7 @@ export const compareandsavevouchers = async (req:Request , res : Response , next
                                                         "auth_session" : result_db.auth_session,
                                                         "vou_sid" : fetch_voucher_last.data[0].sid,
                                                         "rowversion" : fetch_voucher_last.data[0].rowversion,
-                                                        "approvbysid" : "589146682000153260",
-                                                        "approvdate" : "2022-07-04T12:03:44.673Z",
+                                                        "approvbysid" : result_db.clerk
                                                     }
                                                     const complete_voucher = await post_complete_voucher_details(voucher_data).then((response :any)=>{return response; });
                                                     if ((complete_voucher.data).length) {
@@ -155,7 +155,8 @@ export const compareandsavevouchers = async (req:Request , res : Response , next
                                                             res.json({"status" : 1 ,"message": result_db_up,"extra" : fetch_voucher.data[0].sid});
                                                         }
                                                     } else {
-                                                        const errormsg = fetch_voucher.errors[0].errormsg;
+                                                        // console.log(fetch_voucher);
+                                                        const errormsg = complete_voucher.errors[0].errormsg;
                                                         res.json({"status" : 0 ,"message":"Voucher is not converted , error on post_complete_voucher_details ,"+errormsg,"result" : errormsg });
 
                                                     }
@@ -301,6 +302,7 @@ async function convert_voucher_conversion(body:any) {
                 "data": [{"clerksid" : body.clerk, "asnsidlist": body.vou_sid,"doupdatevoucher":false,"originapplication": "RProPrismWeb"}]}
             )
         };
+        // console.log(options);
 
         request(options, function (error, response) {
             if (error) {
@@ -321,6 +323,7 @@ async function convert_voucher_conversion(body:any) {
 
 async function fetch_voucher_details(body:any) {
     return new Promise((resolve, reject)=>{
+        console.log(body);
         
         var options = {
             'method': 'GET',
@@ -328,6 +331,7 @@ async function fetch_voucher_details(body:any) {
             'headers': {'Auth-session': body.auth_session ,'Accept': 'application/json,version=2','Content-Type': 'application/json'
             }
         };
+        // console.log(options);
 
         request(options, function (error, response) {
             if (error) {
